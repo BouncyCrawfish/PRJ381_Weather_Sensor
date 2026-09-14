@@ -40,12 +40,15 @@ GPS_READ_TIMEOUT_S = 2
 CSV_LOG_PATH = "data/weather_log.csv"
 
 # ---------------- MQTT / cloud publishing ----------------
-MQTT_BROKER_HOST = "localhost"  # e.g. AWS IoT endpoint, HiveMQ, Mosquitto
-MQTT_BROKER_PORT = 1883                                # 8883 if using TLS
+MQTT_BROKER_HOST = "a3jjgge5eueb91-ats.iot.eu-north-1.amazonaws.com"
+MQTT_BROKER_PORT = 8883
 MQTT_TOPIC = "iwos/weather"
 MQTT_CLIENT_ID = "iwos-lead-vehicle-01"
+MQTT_CA_PATH = "certs/AmazonRootCA1.pem"
+MQTT_CERT_PATH = "certs/aaa0bc1ca9016c1b8cd8e9f0ac916fbae266a6a993fb0f3759a20cc36a5c2730-certificate.pem.crt"
+MQTT_KEY_PATH = "certs/aaa0bc1ca9016c1b8cd8e9f0ac916fbae266a6a993fb0f3759a20cc36a5c2730-private.pem.key"
 MQTT_USE_TLS = False
-MQTT_USERNAME = None             # set if your broker requires auth
+MQTT_USERNAME = None
 MQTT_PASSWORD = None
 
 # ---------------- Main loop ----------------

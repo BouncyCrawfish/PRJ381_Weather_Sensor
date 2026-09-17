@@ -1,9 +1,7 @@
 """
 MQTT publisher - sends each reading as JSON to your cloud broker/topic.
 
-This is deliberately generic (plain MQTT) so it works whether your cloud
-teammate is using AWS IoT Core, a Firebase MQTT bridge, HiveMQ, or a
-self-hosted Mosquitto broker - only config.py needs to change per broker.
+MQTT publisher for the IWOS weather station (Pi side) - AWS IoT Core version.
 
 Install:
     pip3 install paho-mqtt --break-system-packages
@@ -18,38 +16,44 @@ from config import (
     MQTT_BROKER_PORT,
     MQTT_TOPIC,
     MQTT_CLIENT_ID,
-    MQTT_USE_TLS,
-    MQTT_USERNAME,
-    MQTT_PASSWORD,
+    MQTT_CA_PATH,
+    MQTT_CERT_PATH,
+    MQTT_KEY_PATH,
 )
 
 
 class MQTTPublisher:
     def __init__(self):
-        self.client = mqtt.Client(client_id=MQTT_CLIENT_ID)
+        self.client = mqtt.Client(client_id=MQTT_CLIENT_ID, clean_session=False)
 
-        if MQTT_USERNAME:
-            self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+        self.client.tls_set(
+            ca_certs=MQTT_CA_PATH,
+            certfile=MQTT_CERT_PATH,
+            keyfile=MQTT_KEY_PATH,
+        )
 
-        if MQTT_USE_TLS:
-            self.client.tls_set()
+        self.client.on_connect = self._on_connect
+        self.client.on_disconnect = self._on_disconnect
+        self._connected = False
 
-        self.client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT)
-        self.client.loop_start()  # handles reconnects/network in background
+        self.client.connect_async(MQTT_BROKER_HOST, MQTT_BROKER_PORT, keepalive=60)
+        self.client.loop_start()
 
-    def publish(self, reading: dict):
-        """Publishes one reading dict as a JSON payload."""
+    def _on_connect(self, client, userdata, flags, rc):
+        self._connected = (rc == 0)
+        print("MQTT connected to AWS IoT Core" if self._connected
+              else f"MQTT connect failed, rc={rc}")
+
+    def _on_disconnect(self, client, userdata, rc):
+        self._connected = False
+        print(f"MQTT disconnected (rc={rc}); paho will retry automatically")
+
+    def publish(self, reading: dict, qos: int = 1) -> bool:
         payload = json.dumps(reading)
-        result = self.client.publish(MQTT_TOPIC, payload, qos=1)
-        return result.rc == mqtt.MQTT_ERR_SUCCESS
+        result = self.client.publish(MQTT_TOPIC, payload, qos=qos)
+        result.wait_for_publish(timeout=5)
+        return result.is_published()
 
     def close(self):
         self.client.loop_stop()
         self.client.disconnect()
-
-
-if __name__ == "__main__":
-    publisher = MQTTPublisher()
-    ok = publisher.publish({"test": "hello from IWOS station"})
-    print("Published:", ok)
-    publisher.close()
